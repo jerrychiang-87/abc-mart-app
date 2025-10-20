@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ABC-MART App 下載</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+      line-height: 1.6;
+      background: #fff;
+      color: #222;
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-bottom: 16px;
+      font-size: 15px;
+      color: #666;
+    }
+    a {
+      display: inline-block;
+      margin: 6px;
+      padding: 10px 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #000;
+      transition: all 0.2s ease;
+    }
+    a:hover {
+      background: #000;
+      color: #fff;
+    }
+  </style>
+  <script>
+    const LINKS = {
+      ios: "https://apps.apple.com/us/app/abc-mart/id1527718084",
+      android: "https://play.google.com/store/apps/details?id=com.abcmart.android",
+      desktop: "https://www.abc-mart.com.tw/"
+    };
+
+    function detectPlatform() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      if (/android/i.test(ua)) return "android";
+      if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return "ios";
+      const isIpadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+      if (isIpadOS) return "ios";
+      return "desktop";
+    }
+
+    window.onload = () => {
+      const platform = detectPlatform();
+      const target = LINKS[platform] || LINKS.desktop;
+      setTimeout(() => { window.location.href = target; }, 1000);
+    };
+  </script>
+</head>
+<body>
+  <h1>ABC-MART App 下載</h1>
+  <p>正在偵測您的裝置並開啟對應商店頁面...</p>
+
+  <a href="https://apps.apple.com/us/app/abc-mart/id1527718084">前往 App Store</a>
+  <a href="https://play.google.com/store/apps/details?id=com.abcmart.android">前往 Google Play</a>
+  <a href="https://www.abc-mart.com.tw/">前往 ABC-MART 官網</a>
+</body>
+</html>
