@@ -2,70 +2,135 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ABC-MART App 下載</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>ABC-MART App 下載/開啟</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif;
-      text-align: center;
-      padding: 40px;
-      line-height: 1.6;
-      background: #fff;
-      color: #222;
-    }
-    h1 {
-      font-size: 22px;
-      margin-bottom: 8px;
-    }
-    p {
-      margin-bottom: 16px;
-      font-size: 15px;
-      color: #666;
-    }
-    a {
-      display: inline-block;
-      margin: 6px;
-      padding: 10px 16px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      text-decoration: none;
-      color: #000;
-      transition: all 0.2s ease;
-    }
-    a:hover {
-      background: #000;
-      color: #fff;
-    }
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif;
+      text-align:center;padding:40px;line-height:1.6;background:#fff;color:#222}
+    h1{font-size:22px;margin-bottom:8px}
+    p{margin-bottom:16px;font-size:15px;color:#666}
+    a{display:inline-block;margin:6px;padding:10px 16px;border:1px solid #ccc;border-radius:8px;
+      text-decoration:none;color:#000;transition:all .2s}
+    a:hover{background:#000;color:#fff}
+    .note{font-size:13px;color:#888;margin-top:8px}
+    .warn{display:none;margin-top:14px;font-size:14px;color:#444;background:#fff7e6;border:1px solid #ffe1a3;padding:10px;border-radius:8px}
   </style>
   <script>
+    // 原本的商店/官網連結（純備援）
     const LINKS = {
       ios: "https://apps.apple.com/us/app/abc-mart/id1527718084",
       android: "https://play.google.com/store/apps/details?id=com.abcmart.android",
       desktop: "https://www.abc-mart.com.tw/"
     };
 
-    function detectPlatform() {
+    // 平台偵測
+    function platform(){
       const ua = navigator.userAgent || navigator.vendor || window.opera;
-      if (/android/i.test(ua)) return "android";
-      if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return "ios";
-      const isIpadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-      if (isIpadOS) return "ios";
-      return "desktop";
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+      const isWeChat = /MicroMessenger/i.test(ua);
+      const isFB = /FBAN|FBAV|FB_IAB/i.test(ua);
+      const isIG = /Instagram/i.test(ua);
+      const isIAB = isWeChat || isFB || isIG; // 內建瀏覽器
+      return {isAndroid,isIOS,isIAB};
     }
 
+    // 安全導向
+    function go(url){ if(url) location.href = url; }
+
+    // 計時回落
+    function openWithTimer(appUrl, fallbackUrl, timeout=900){
+      const start = Date.now();
+      // iOS 較穩：隱形 iframe 觸發
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = appUrl;
+      document.body.appendChild(iframe);
+      setTimeout(()=>{ if(Date.now()-start < timeout+100) go(fallbackUrl); }, timeout);
+    }
+
+    // Android intent:// 優先（若有 pkg）
+    function buildIntentUrl(deep, pkg, fallback){
+      const scheme = deep.split('://')[0];
+      const path = deep.replace('://','/').split('://')[1]; // abcmart://x/y -> x/y
+      return `intent://${path}#Intent;scheme=${scheme};package=${pkg};S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
+    }
+
+    // 主要流程
     window.onload = () => {
-      const platform = detectPlatform();
-      const target = LINKS[platform] || LINKS.desktop;
-      setTimeout(() => { window.location.href = target; }, 1000);
+      const {isAndroid,isIOS,isIAB} = platform();
+      const qs = new URLSearchParams(location.search);
+      let deep = qs.get('deep') || ''; // abcmart://...
+      const web  = qs.get('web')  || ''; // https://...
+      const pkg  = qs.get('pkg')  || ''; // com.abcmart.android
+
+      // 內建瀏覽器提示
+      const warn = document.getElementById('iabWarn');
+      if(isIAB) warn.style.display = 'block';
+
+      // 綁定按鈕
+      document.getElementById('btnApp').onclick = tryOpen;
+      document.getElementById('btnWeb').onclick = () => go(web || LINKS.desktop);
+      document.getElementById('btnStore').onclick = () => {
+        if(isAndroid) go(LINKS.android);
+        else if(isIOS) go(LINKS.ios);
+        else go(LINKS.desktop);
+      };
+
+      // 若 deep/web 沒帶，沿用你原本的行為：導去商店/官網
+      if(!deep && !web){
+        setTimeout(()=>{
+          if(isAndroid) go(LINKS.android);
+          else if(isIOS) go(LINKS.ios);
+          else go(LINKS.desktop);
+        }, 1000);
+        return;
+      }
+
+      // 自動嘗試一次打開 App
+      tryOpen();
+
+      function tryOpen(){
+        if(!deep){ go(web || LINKS.desktop); return; }
+
+        // iOS：如你改成 Universal Link（https 開頭），直接 go(deep) 交給系統判斷
+        if(isIOS){
+          if(/^https:\/\//i.test(deep)) { go(deep); return; }
+          openWithTimer(deep, web || LINKS.ios, 900);
+          return;
+        }
+
+        // Android：intent:// 體驗較穩（若提供 pkg）
+        if(isAndroid){
+          if(pkg){
+            go(buildIntentUrl(deep, pkg, web || LINKS.android));
+            return;
+          }
+          // 無 pkg 就先用 scheme + 計時回落
+          openWithTimer(deep, web || LINKS.android, 900);
+          return;
+        }
+
+        // 其他平台（桌機等）
+        go(web || LINKS.desktop);
+      }
     };
   </script>
 </head>
 <body>
-  <h1>ABC-MART App 下載</h1>
-  <p>正在偵測您的裝置並開啟對應商店頁面...</p>
+  <h1>ABC-MART App 下載 / 開啟</h1>
+  <p>正在為你開啟 App；若未成功，請改用下方按鈕。</p>
 
-  <a href="https://apps.apple.com/us/app/abc-mart/id1527718084">前往 App Store</a>
-  <a href="https://play.google.com/store/apps/details?id=com.abcmart.android">前往 Google Play</a>
-  <a href="https://www.abc-mart.com.tw/">前往 ABC-MART 官網</a>
+  <a id="btnApp">嘗試開啟 App</a>
+  <a id="btnWeb">改用官網查看</a>
+  <a id="btnStore">前往商店安裝 App</a>
+
+  <div id="iabWarn" class="warn">
+    偵測到你目前使用社群 App 內建瀏覽器（如 IG/FB/微信），
+    可能會阻擋自動開啟 App。<br>
+    建議點右上角「⋯」→「在瀏覽器中開啟」後再試一次。
+  </div>
+
+  <p class="note">仍保留原有按鈕以供使用者手動選擇。</p>
 </body>
 </html>
